@@ -142,7 +142,7 @@ class Processor:
             contribution = (
                 signals[source]
                 * gain
-                * np.exp(1j * np.deg2rad(phase))
+                * np.exp(-1j * np.deg2rad(phase))
             )
 
             ports[output] = ports.get(output, 0j) + contribution
@@ -165,7 +165,7 @@ class Processor:
                     value += (
                         signals[source]
                         * gain
-                        * np.exp(1j * np.deg2rad(phase))
+                        * np.exp(-1j * np.deg2rad(phase))
                     )
 
                 new_signals[output] = value
@@ -471,14 +471,21 @@ for theta_B in theta_B_sweepQ2:
     #     10 * np.log10(max(power, 1e-15))
     # )
 
+gain_dB_port5_A = 6.02
+
 # Plot port 5 power gain in dB
 plt.figure(figsize=(9, 5))
-plt.plot(theta_B_sweepQ2, gain_dB_port5_B, color="blue")
-plt.xlabel(r"$\theta_B$ (degrees)")
-plt.ylabel("Port 5_B gain (dB)")
-plt.title(r"Port 5 Gain for Source B vs. $\theta_B$")
+# plt.plot(theta_B_sweepQ2, gain_dB_port5_A, color="blue", label=r"A")
+plt.axhline(y=gain_dB_port5_A,color="blue",label="A=6.02dB")
+plt.plot(theta_B_sweepQ2, gain_dB_port5_B, color="red", label=r"B")
+plt.xlabel(r"$\theta_B$ ($^\circ$)", fontsize=21)
+plt.xticks(fontsize=17)
+plt.yticks(fontsize=17)
+plt.ylabel("Port 5 gain (dB)", fontsize=21)
+plt.title(r"Port 5 Gain for Source A and B vs. $\theta_B$", fontsize=24)
 plt.xlim(0, 90)
 plt.grid(True)
+plt.legend(fontsize=20, loc='lower right')
 plt.tight_layout()
 plt.show()
 
@@ -864,26 +871,29 @@ fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
 # Subplot 1: Optimal phases
 axes[0].plot(theta_B_sweepQ3, phi4_opt, label=r"$\phi_4$")
 axes[0].plot(theta_B_sweepQ3, phi5_opt, label=r"$\phi_5$")
-axes[0].set_ylabel("Phase (degrees)")
-axes[0].set_title("Optimal Phase Settings vs. Theta B")
+axes[0].set_ylabel("Phase ($^\\circ$)", fontsize=21)
+axes[0].set_title(r"Optimal Phase Settings vs. $\theta_B$", fontsize=24)
 axes[0].set_ylim(0, 360)
+axes[0].tick_params(axis="both", labelsize=17)
 axes[0].grid(True)
-axes[0].legend()
+axes[0].legend(fontsize=20)
 
 # Subplot 2: Optimal coupler ratio
 axes[1].plot(theta_B_sweepQ3, ratio_opt, color="green", label="Coupler Ratio")
-axes[1].set_ylabel("Coupler Ratio")
+axes[1].set_ylabel("Coupler Ratio", fontsize=21)
 axes[1].set_ylim(0, 1)
+axes[1].tick_params(axis="both", labelsize=17)
 axes[1].grid(True)
-axes[1].legend()
+axes[1].legend(fontsize=20)
 
 # Subplot 3: Maximum output power
 axes[2].plot(theta_B_sweepQ3, max_power_results, color="red", label="Max. Power")
-axes[2].set_xlabel(r"$\theta_B$ (degrees)")
-axes[2].set_ylabel(r"$|Output1_B|^2$")
-axes[2].set_title("Maximum Output Power vs. Theta B")
+axes[2].set_xlabel(r"$\theta_B$ ($^\\circ$)", fontsize=21)
+axes[2].set_ylabel(r"Port 6 Gain", fontsize=21)
+axes[2].set_title(r"Maximum Output Power vs. $\theta_B$", fontsize=24)
+axes[2].tick_params(axis="both", labelsize=17)
 axes[2].grid(True)
-axes[2].legend()
+axes[2].legend(fontsize=20)
 
 # Common x-axis settings
 axes[2].set_xlim(0, 90)
@@ -970,25 +980,37 @@ for theta_B in theta_B_sweepQ5:
 # Plot results
 fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
 
+# Subplot 1: Optimal 2-bit phase settings
 axes[0].plot(theta_B_sweepQ5, phi4_opt, label=r"$\phi_4$")
 axes[0].plot(theta_B_sweepQ5, phi5_opt, label=r"$\phi_5$")
-axes[0].set_ylabel("Phase (degrees)")
-axes[0].set_title("Optimal 2-bit Phase Settings vs. Theta B")
+axes[0].set_ylabel("Phase ($^\\circ$)", fontsize=21)
+axes[0].set_title(r"Optimal 2-bit Phase Settings vs. $\theta_B$", fontsize=24)
 axes[0].set_yticks([0, 90, 180, 270])
+axes[0].tick_params(axis="both", labelsize=17)
 axes[0].grid(True)
-axes[0].legend()
+axes[0].legend(fontsize=20)
 
-axes[1].plot(theta_B_sweepQ5, ratio_opt, color="green")
-axes[1].set_ylabel("Optimal Coupler Ratio")
+# Subplot 2: Optimal coupler ratio
+axes[1].plot(theta_B_sweepQ5, ratio_opt, color="green", label="Coupler Ratio")
+axes[1].set_ylabel("Coupler Ratio", fontsize=21)
 axes[1].set_ylim(0, 1)
+axes[1].tick_params(axis="both", labelsize=17)
 axes[1].grid(True)
+axes[1].legend(fontsize=20)
 
-axes[2].plot(theta_B_sweepQ5, gain_dB_results, color="red")
-axes[2].set_xlabel(r"$\theta_B$ (degrees)")
-axes[2].set_ylabel("Output1_B Gain (dB)")
-axes[2].set_title("Maximum Gain with 2-bit Phase Shifters")
+
+# Subplot 3: Maximum gain
+axes[2].plot(theta_B_sweepQ5, gain_dB_results, color="red", label="Max. Power")
+axes[2].set_xlabel(r"$\theta_B$ ($^\\circ$)", fontsize=21)
+axes[2].set_ylabel("Port 6 Gain", fontsize=21)
+axes[2].set_title("Maximum Gain with 2-bit Phase Shifters", fontsize=24)
+axes[2].tick_params(axis="both", labelsize=17)
 axes[2].grid(True)
+axes[2].legend(fontsize=20)
 
+
+# Common x-axis settings
 axes[2].set_xlim(0, 90)
+
 plt.tight_layout()
 plt.show()

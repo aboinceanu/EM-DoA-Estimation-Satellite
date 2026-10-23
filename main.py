@@ -261,3 +261,102 @@ def run(mode="wA", plot=True):
 if __name__ == "__main__":
     out = run("animation")
     plt.show()
+    
+    
+    
+    
+    
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.interpolate import RegularGridInterpolator
+
+# --------------------------------------------------
+# 1. Load MATLAB single-dipole gain pattern
+# --------------------------------------------------
+# header=None is important: the first row contains data,
+# not column names.
+pattern = pd.read_csv("single_dipole_pattern.csv", header=None)
+
+pattern.columns = ["azimuth", "elevation", "gain_dBi"]
+
+# Create a regular azimuth/elevation grid
+az_grid = np.sort(pattern["azimuth"].unique())
+el_grid = np.sort(pattern["elevation"].unique())
+
+gain_grid = (
+    pattern.pivot(
+        index="elevation",
+        columns="azimuth",
+        values="gain_dBi"
+    )
+    .reindex(index=el_grid, columns=az_grid)
+    .to_numpy()
+)
+
+# Interpolate gain in dBi over the exported angular grid
+gain_interpolator = RegularGridInterpolator(
+    (el_grid, az_grid),
+    gain_grid,
+    bounds_error=False,
+    fill_value=None
+)
+
+# --------------------------------------------------
+# 2. Map your scan angles to MATLAB azimuth/elevation
+# --------------------------------------------------
+theta_deg = np.rad2deg(angle)
+
+# Your existing directions:
+# x = sin(theta), y = 0, z = cos(theta)
+azimuth_deg = np.where(theta_deg < 0, 180.0, 0.0)
+elevation_deg = 90.0 - np.abs(theta_deg)
+
+query_points = np.column_stack((elevation_deg, azimuth_deg))
+element_gain_dBi = gain_interpolator(query_points)
+
+# --------------------------------------------------
+# 3. Use your existing optimized beamformer weights
+# --------------------------------------------------
+w_A = weights_A()
+W_B = weights_B()
+
+# Array responses with isotropic elements
+gain_A_port5_iso = gain_db(w_A)
+gain_B_port6_iso = gain_db(W_B)
+
+# Combined element-pattern + array-response curves.
+# The MATLAB element gain is already in dBi.
+gain_A_port5_dipole = gain_A_port5_iso + element_gain_dBi
+gain_B_port6_dipole = gain_B_port6_iso + element_gain_dBi
+
+# --------------------------------------------------
+# 4. Plot Port 5
+# --------------------------------------------------
+plt.figure(figsize=(9, 5))
+plt.plot(theta_deg, gain_A_port5_iso, label="Isotropic elements")
+plt.plot(theta_deg, gain_A_port5_dipole, label="MATLAB dipole pattern")
+plt.xlabel("Source angle (degrees)")
+plt.ylabel("Combined response (dB / dBi reference)")
+plt.xlim(0,90)
+plt.title("Port 5: isotropic vs MATLAB dipole")
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+
+# --------------------------------------------------
+# 5. Plot Port 6
+# --------------------------------------------------
+plt.figure(figsize=(9, 5))
+plt.plot(theta_deg, gain_B_port6_iso, label="Isotropic elements")
+plt.plot(theta_deg, gain_B_port6_dipole, label="MATLAB dipole pattern")
+plt.xlabel("Source angle (degrees)")
+plt.ylabel("Combined response (dB / dBi reference)")
+plt.title("Port 6: isotropic vs MATLAB dipole")
+plt.xlim(0,90)
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+
+plt.show()
