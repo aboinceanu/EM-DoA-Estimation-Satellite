@@ -360,3 +360,187 @@ plt.legend()
 plt.tight_layout()
 
 plt.show()
+
+
+
+
+
+
+files = [
+    "antel1_embedded_pattern.csv",
+    "antel2_embedded_pattern.csv",
+    "antel3_embedded_pattern.csv",
+    "antel4_embedded_pattern.csv",
+]
+
+# Scan angles from your existing code
+theta_deg = np.rad2deg(angle)
+
+# Assumes directions x=sin(theta), y=0, z=cos(theta)
+azimuth_deg = np.where(theta_deg < 0, 180.0, 0.0)
+elevation_deg = 90.0 - np.abs(theta_deg)
+
+plt.figure(figsize=(10, 6))
+
+for i, filename in enumerate(files):
+    df = pd.read_csv(
+        filename,header=None,names=["azimuth", "elevation", "gain_dBi"])
+
+    az_grid = np.sort(df["azimuth"].unique())
+    el_grid = np.sort(df["elevation"].unique())
+
+    gain_grid = (df.pivot(
+            index="elevation",
+            columns="azimuth",
+            values="gain_dBi"
+        ).reindex(index=el_grid, columns=az_grid).to_numpy())
+
+    interpolator = RegularGridInterpolator((el_grid, az_grid), gain_grid, bounds_error=False, fill_value=None)
+
+    points = np.column_stack((elevation_deg, azimuth_deg))
+    embedded_gain = interpolator(points)
+
+    plt.plot(theta_deg, embedded_gain, label=f"Embedded element {i+1}")
+
+plt.xlabel("Source angle (degrees)")
+plt.ylabel("Embedded-element gain (dBi)")
+plt.title("Embedded-element patterns along the scan directions")
+plt.xlim(0, 90)
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+import pandas as pd
+import numpy as np
+
+files = [
+    "antel1_embedded_pattern.csv",
+    "antel2_embedded_pattern.csv",
+    "antel3_embedded_pattern.csv",
+    "antel4_embedded_pattern.csv",
+]
+
+patterns = []
+
+for file in files:
+    df = pd.read_csv(file, header=None)
+    df.columns = ["azimuth", "elevation", "gain_dBi"]
+    patterns.append(df["gain_dBi"].to_numpy())
+
+for i in range(4):
+    for j in range(i + 1, 4):
+        difference = np.max(np.abs(patterns[i] - patterns[j]))
+        print(f"Elements {i+1} vs {j+1}: max difference = {difference:.6f} dB")
+        
+        
+from scipy.io import loadmat
+import numpy as np
+import matplotlib.pyplot as plt
+
+data = loadmat("Q7_embedded_fields.mat")
+
+Eembedded = data["Eembedded"]   # (3, 1000, 4)
+theta = data["theta"].ravel()
+theta_deg = np.rad2deg(theta)
+
+# Each embedded field is a 3-component complex vector.
+# Combine the components using the beamforming weights.
+w_A = weights_A()
+W_B = weights_B()
+
+print("Embedded fields:", Eembedded.shape)
+print("A weights:", np.shape(w_A))
+print("B weights:", np.shape(W_B))
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.io import loadmat
+
+# Load the embedded-element fields calculated in MATLAB
+data = loadmat("Q7_embedded_fields.mat")
+
+Eembedded = data["Eembedded"]   # (3, 1000, 4)
+theta = data["theta"].ravel()
+theta_deg = np.rad2deg(theta)
+
+# Existing beamforming weights
+w_A = np.asarray(weights_A()).reshape(4)
+W_B = np.asarray(weights_B())   # (4, 1000)
+
+# --------------------------------------------------
+# 1. Combine the complex embedded fields
+# --------------------------------------------------
+
+# A: fixed weights across all scan angles
+E_A = np.einsum(
+    "n,ijk->ij",
+    np.conj(w_A),
+    Eembedded
+)  # shape: (3, 1000)
+
+# B: angle-dependent weights
+E_B = np.einsum(
+    "kj,ijk->ij",
+    np.conj(W_B),
+    Eembedded
+)  # shape: (3, 1000)
+
+# Sum power over the three field components
+P_A = np.sum(np.abs(E_A)**2, axis=0)
+P_B = np.sum(np.abs(E_B)**2, axis=0)
+
+# Convert to dB, normalized to each curve's own peak
+A_embedded_dB = 10*np.log10(
+    np.maximum(P_A, 1e-30) / np.max(P_A)
+)
+B_embedded_dB = 10*np.log10(
+    np.maximum(P_B, 1e-30) / np.max(P_B)
+)
+
+# Normalize the existing ideal-element curves in the same way
+A_iso = np.asarray(gain_A_port5_iso).ravel()
+B_iso = np.asarray(gain_B_port6_iso)
+
+# Handle B's curve orientation
+if B_iso.shape == (4, 1000):
+    raise ValueError("B_iso should be a gain curve, not the weight matrix.")
+B_iso = B_iso.ravel()
+
+A_iso_dB = A_iso - np.max(A_iso)
+B_iso_dB = B_iso - np.max(B_iso)
+
+# --------------------------------------------------
+# 2. Plot port 5: beamformer A
+# --------------------------------------------------
+plt.figure(figsize=(9, 5))
+plt.plot(theta_deg, A_iso_dB, label="A: ideal elements")
+plt.plot(theta_deg, A_embedded_dB, "--",
+         label="A: embedded-element fields")
+plt.xlabel("Source angle (degrees)")
+plt.ylabel("Normalized response (dB)")
+plt.title("Q7 — Port 5: Beamformer A")
+plt.xlim(0, 90)
+plt.ylim(-60, 2)
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+
+# --------------------------------------------------
+# 3. Plot port 6: beamformer B
+# --------------------------------------------------
+plt.figure(figsize=(9, 5))
+plt.plot(theta_deg, B_iso_dB, label="B: ideal elements")
+plt.plot(theta_deg, B_embedded_dB, "--",
+         label="B: embedded-element fields")
+plt.xlabel("Source angle (degrees)")
+plt.ylabel("Normalized response (dB)")
+plt.title("Q7 — Port 6: Beamformer B")
+plt.xlim(0, 90)
+plt.ylim(-60, 2)
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+
+plt.show()
